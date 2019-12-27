@@ -5,6 +5,23 @@ from tkinter import filedialog, Tk
 from time import sleep
 
 
+# 获取番号
+def get_fanhao(file):
+    video_type = '.' + file.split('.')[-1]
+    fanhao = file.replace(video_type,'').upper()
+    return fanhao 
+
+# 含有中文字幕视频
+def is_cn(file):
+    cn_tags = ['C', 'R', 'R_NEW', 'C_NEW']
+    fanhao = get_fanhao(file)
+    for cn_tag in cn_tags:
+        if fanhao.endswith(cn_tag):
+            return True
+    else:
+        return False
+
+
 # 获取用户选取的文件夹路径，返回路径str
 def get_directory():
     directory_root = Tk()
@@ -19,6 +36,10 @@ def get_directory():
         temp_path = work_path.replace('/', '\\')
         return temp_path
 
+# 需要整理的文件夹
+def get_directory2():
+    temp_path = input('').strip().replace('/', '\\')
+    return temp_path
 
 # 记录错误txt，无返回
 def write_fail(fail_m):
@@ -116,14 +137,17 @@ def download_pic(cov_list):
 class JavFile(object):
     def __init__(self):
         self.name = 'ABC-123.mp4'  # 文件名
-        self.car = 'ABC-123'  # 车牌
+        self.car = 'ABC-123'  # 番号
         self.episodes = 0     # 第几集
 
 
 #  main开始
-print('1、避开21:00-1:00，访问javlibrary和arzon很慢。\n'
-      '2、若一直连不上javlibrary，请在ini中更新网址\n'
-      '3、不要用www.javlibrary.com，用防屏蔽地址\n')
+print('\n            注意事项\n'
+      '-----------------------------------------------\n'
+      ' 1、避开21:00-1:00，访问javlibrary和arzon很慢。\n'
+      ' 2、若一直连不上javlibrary，请在ini中更新网址\n'
+      ' 3、不要用www.javlibrary.com，用防屏蔽地址\n'
+      '-----------------------------------------------\n')
 # 读取配置文件，这个ini文件用来给用户设置重命名的格式和jav网址
 print('正在读取ini中的设置...', end='')
 try:
@@ -154,7 +178,7 @@ try:
     simp_trad = config_settings.get("其他设置", "简繁中文？")
     library_url = config_settings.get("其他设置", "javlibrary网址")
     bus_url = config_settings.get("其他设置", "javbus网址")
-    suren_pref = config_settings.get("其他设置", "素人车牌(若有新车牌请自行添加)")
+    suren_pref = config_settings.get("其他设置", "素人番号(若有新番号请自行添加)")
     file_type = config_settings.get("其他设置", "扫描文件类型")
     title_len = int(config_settings.get("其他设置", "重命名中的标题长度（50~150）"))
 except:
@@ -214,10 +238,10 @@ else:
     library_url += 'tw/'
     t_lang = 'cht'
 # 初始化其他
-nfo_dict = {'空格': ' ', '车牌': 'ABC-123', '标题': '未知标题', '完整标题': '完整标题', '导演': '未知导演',
+nfo_dict = {'空格': ' ', '番号': 'ABC-123', '标题': '未知标题', '完整标题': '完整标题', '导演': '未知导演',
             '发行年月日': '1970-01-01', '发行年份': '1970', '月': '01', '日': '01',
             '片商': '未知片商', '评分': '0', '首个女优': '未知演员', '全部女优': '未知演员',
-            '片长': '0', '\\': '\\', '是否中字': '中字-', '视频': 'ABC-123', '车牌前缀': 'ABC'}         # 用于暂时存放影片信息，女优，标题等
+            '片长': '0', '\\': '\\', '是否中字': '中字-', '视频': 'ABC-123', '番号前缀': 'ABC'}         # 用于暂时存放影片信息，女优，标题等
 suren_list = suren_pref.split('、')               # 素人番号的列表，来自ini文件的suren_pref
 rename_mp4_list = rename_mp4.split('+')           # 重命名视频的格式，来自ini文件的rename_mp4
 rename_folder_list = rename_folder.split('+')     # 重命名文件夹的格式，来自ini文件的rename_folder
@@ -254,7 +278,7 @@ start_key = ''
 while start_key == '':
     # 用户选择文件夹
     print('请选择要整理的文件夹：', end='')
-    path = get_directory()
+    path = get_directory2()
     print(path)
     write_fail('已选择文件夹：' + path + '\n')
     print('...文件扫描开始...如果时间过长...请避开中午夜晚高峰期...\n')
@@ -283,9 +307,9 @@ while start_key == '':
             continue
         if if_exnfo == '是' and files and (files[-1].endswith('nfo') or (len(files) > 1 and files[-2].endswith('nfo'))):
             continue
-        # 对这一层文件夹进行评估,有多少视频，有多少同车牌视频，是不是独立文件夹
+        # 对这一层文件夹进行评估,有多少视频，有多少同番号视频，是不是独立文件夹
         car_videos = []        # 存放：需要整理的jav的结构体
-        cars_dic = {}          # 存放：这一层目录下的几个车牌
+        cars_dic = {}          # 存放：这一层目录下的几个番号
         videos_num = 0         # 当前文件夹中视频的数量，可能有视频不是jav
         subtitles = False      # 有没有字幕
         nfo_dict['是否中字'] = ''
@@ -294,10 +318,10 @@ while start_key == '':
             if raw_file.endswith(('.srt', '.vtt', '.ass',)):
                 subtitles = True
                 continue
-            # 判断是不是视频，得到车牌号
+            # 判断是不是视频，得到番号
             if raw_file.endswith(type_tuple) and not raw_file.startswith('.'):
                 videos_num += 1
-                video_num_g = re.search(r'([a-zA-Z]{2,6})-? ?(\d{2,5})', raw_file)    # 这个正则表达式匹配“车牌号”可能有点奇怪，
+                video_num_g = re.search(r'([a-zA-Z]{2,6})-? ?(\d{2,5})', raw_file)    # 这个正则表达式匹配“番号”可能有点奇怪，
                 if str(video_num_g) != 'None':                               # 如果你下过上千部片，各种参差不齐的命名，你就会理解我了。
                     num_pref = video_num_g.group(1).upper()
                     num_suf = video_num_g.group(2)
@@ -309,12 +333,12 @@ while start_key == '':
                         fail_list.append('    >' + fail_message)
                         write_fail('    >' + fail_message)
                         continue  # 素人影片不参与下面的整理
-                    if car_num not in cars_dic:     # cars_dic中没有这个车牌，表示这一层文件夹下新发现一个车牌
-                        cars_dic[car_num] = 1        # 这个新车牌有了第一集
+                    if car_num not in cars_dic:     # cars_dic中没有这个番号，表示这一层文件夹下新发现一个番号
+                        cars_dic[car_num] = 1        # 这个新番号有了第一集
                     else:
-                        cars_dic[car_num] += 1       # 已经有这个车牌了，加一集cd
+                        cars_dic[car_num] += 1       # 已经有这个番号了，加一集cd
                     jav_file = JavFile()
-                    jav_file.car = car_num          # 车牌
+                    jav_file.car = car_num          # 番号
                     jav_file.name = raw_file        # 原文件名
                     jav_file.episodes = cars_dic[car_num]  # 这个jav视频，是第几集
                     car_videos.append(jav_file)
@@ -324,7 +348,7 @@ while start_key == '':
                 continue
         if cars_dic:  # 这一层文件夹下有jav
             if len(cars_dic) > 1 or videos_num > len(car_videos) or len(dirs) > 1 or (len(dirs) == 1 and dirs[0] != '.actors'):
-                # 当前文件夹下，车牌不止一个，还有其他非jav视频，            有其他文件夹，除了女优头像文件夹“.actors”
+                # 当前文件夹下，番号不止一个，还有其他非jav视频，            有其他文件夹，除了女优头像文件夹“.actors”
                 separate_folder = False   # 不是独立的文件夹
             else:
                 separate_folder = True    # 这一层文件夹是这部jav的独立文件夹
@@ -397,11 +421,11 @@ while start_key == '':
                     .replace('|', '#').replace('＜', '【').replace('＞', '】')\
                     .replace('〈', '【').replace('〉', '】').replace('.', '。').replace('＆', '和')
                 # 正则匹配 影片信息 开始！
-                # title的开头是车牌号，想要后面的纯标题
+                # title的开头是番号，想要后面的纯标题
                 car_titleg = re.search(r'(.+?) (.+)', title)  # 这边匹配番号，[a-z]可能很奇怪，
-                # 车牌号
-                nfo_dict['车牌'] = car_titleg.group(1)
-                nfo_dict['车牌前缀'] = nfo_dict['车牌'].split('-')[0]
+                # 番号
+                nfo_dict['番号'] = car_titleg.group(1)
+                nfo_dict['番号前缀'] = nfo_dict['番号'].split('-')[0]
                 # 给用户用的标题是 短的title_easy
                 nfo_dict['完整标题'] = car_titleg.group(2)
                 # 处理影片的标题过长
@@ -456,9 +480,12 @@ while start_key == '':
                 # 特点
                 genres = re.findall(r'category tag">(.+?)</a></span><span id="genre', jav_html)
                 genres.append('片商：' + nfo_dict['片商'])
-                if '-c.' in file or '-C.' in file or subtitles:
+                
+                if is_cn(file) or subtitles:
                     genres.append('中文字幕')
                     nfo_dict['是否中字'] = custom_subtitle
+
+                    
                 # DVD封面cover
                 coverg = re.search(r'src="(.+?)" width="600" height="403"', jav_html)  # 封面图片的正则对象
                 if str(coverg) != 'None':
@@ -493,7 +520,7 @@ while start_key == '':
                 plot = ''
                 if if_nfo == '是' and if_plot == '是':
                     while 1:
-                        arz_search_url = 'https://www.arzon.jp/itemlist.html?t=&m=all&s=&q=' + nfo_dict['车牌']
+                        arz_search_url = 'https://www.arzon.jp/itemlist.html?t=&m=all&s=&q=' + nfo_dict['番号']
                         print('    >正在查找简介：', arz_search_url)
                         arzon_list[0] = arz_search_url
                         try:
@@ -615,7 +642,7 @@ while start_key == '':
                     new_folder = new_folder.rstrip(' ')  # 去除末尾空格，否则windows会自动删除空格，导致程序仍以为带空格
                     if separate_folder:  # 是独立文件夹，才会重命名文件夹
                         if cars_dic[car_num] == 1 or (cars_dic[car_num] > 1 and cars_dic[car_num] == srt.episodes):
-                            # 同一车牌有多部，且这是最后一部，才会重命名
+                            # 同一番号有多部，且这是最后一部，才会重命名
                             newroot_list = root.split('\\')
                             del newroot_list[-1]
                             upper2_root = '\\'.join(newroot_list)  # 当前文件夹的上级目录
@@ -667,8 +694,8 @@ while start_key == '':
                             "  <runtime>" + nfo_dict['片长'] + "</runtime>\n"
                             "  <country>日本</country>\n"
                             "  <studio>" + nfo_dict['片商'] + "</studio>\n"
-                            "  <id>" + nfo_dict['车牌'] + "</id>\n"
-                            "  <num>" + nfo_dict['车牌'] + "</num>\n")
+                            "  <id>" + nfo_dict['番号'] + "</id>\n"
+                            "  <num>" + nfo_dict['番号'] + "</num>\n")
                     for i in genres:
                         f.write("  <genre>" + i + "</genre>\n")
                     for i in genres:
@@ -703,7 +730,7 @@ while start_key == '':
                     except:
                         print('    >从javlibrary下载fanart.jpg失败，正在前往javbus...')
                         # 在javbus上找图片url
-                        bus_search_url = bus_url + nfo_dict['车牌']
+                        bus_search_url = bus_url + nfo_dict['番号']
                         jav_list[0] = bus_search_url
                         try:
                             bav_html = get_jav_html(jav_list)
@@ -833,6 +860,6 @@ while start_key == '':
                 print(fail, end='')
         print('\n“【记得清理它】失败记录.txt”已记录错误\n')
     else:
-        print('没有处理失败的AV，干得漂亮！  ', path, '\n')
+        print('没有处理失败的番号，干得漂亮！  ', path, '\n')
     # os.system('pause')
     start_key = input('回车继续选择文件夹整理：')
